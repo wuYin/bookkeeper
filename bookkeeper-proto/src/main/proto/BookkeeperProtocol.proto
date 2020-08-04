@@ -115,15 +115,19 @@ message ReadRequest {
     optional int64 timeOut = 5;
 }
 
+
+//
+// NOTE: add entry request from bookie client
+//
 message AddRequest {
     enum Flag {
-        RECOVERY_ADD = 1;
+        RECOVERY_ADD = 1; // autorecovery ?
     }
     optional Flag flag = 100;
-    required int64 ledgerId = 1;
+    required int64 ledgerId = 1; // NOTE: <lid, eid>
     required int64 entryId = 2;
-    required bytes masterKey = 3;
-    required bytes body = 4;
+    required bytes masterKey = 3; // TODO
+    required bytes body = 4; // NOTE: entry bytecode content
     optional int32 writeFlags = 5;
 }
 

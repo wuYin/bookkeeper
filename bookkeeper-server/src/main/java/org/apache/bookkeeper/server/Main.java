@@ -282,10 +282,10 @@ public class Main {
      * <p>The sequence of the components is:
      *
      * <pre>
-     * - stats provider
-     * - bookie server
-     * - autorecovery daemon
-     * - http service
+     * - 1. stats provider
+     * - 2. bookie server
+     * - 3. autorecovery daemon
+     * - 4. http service
      * </pre>
      *
      * @param conf bookie server configuration

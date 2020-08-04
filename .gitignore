@@ -41,3 +41,8 @@ tools/all/src/main/resources
 
 node_modules
 package-lock.json
+
+# protoc
+bookkeeper-server/src/main/java/org/apache/bookkeeper/bookie/storage/ldb/DbLedgerStorageDataFormats.java
+bookkeeper-server/src/main/java/org/apache/bookkeeper/proto/BookkeeperProtocol.java
+bookkeeper-server/src/main/java/org/apache/bookkeeper/proto/DataFormats.java

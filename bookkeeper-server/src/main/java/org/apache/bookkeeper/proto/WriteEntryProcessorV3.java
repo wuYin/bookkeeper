@@ -52,6 +52,7 @@ class WriteEntryProcessorV3 extends PacketProcessorBaseV3 {
     }
 
     // Returns null if there is no exception thrown
+    // NOTE: add entry runnable task
     private AddResponse getAddResponse() {
         final long startTimeNanos = MathUtils.nowInNano();
         AddRequest addRequest = request.getAddRequest();

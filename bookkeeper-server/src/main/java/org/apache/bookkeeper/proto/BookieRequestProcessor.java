@@ -296,6 +296,9 @@ public class BookieRequestProcessor implements RequestProcessor {
     }
 
     @Override
+    //
+    // NOTE: bookie server request handler
+    //
     public void processRequest(Object msg, Channel c) {
         // If we can decode this packet as a Request protobuf packet, process
         // it as a version 3 packet. Else, just use the old protocol.
@@ -304,6 +307,7 @@ public class BookieRequestProcessor implements RequestProcessor {
             restoreMdcContextFromRequest(r);
             try {
                 BookkeeperProtocol.BKPacketHeader header = r.getHeader();
+                // NOTE: dispatch operation
                 switch (header.getOperation()) {
                     case ADD_ENTRY:
                         processAddRequestV3(r, c);
@@ -431,6 +435,7 @@ public class BookieRequestProcessor implements RequestProcessor {
             write.run();
         } else {
             try {
+                // NOTE: ADD_ENTRY -> WriteEntryProcessorV3 Runnable -> threadPool.execute
                 threadPool.executeOrdered(r.getAddRequest().getLedgerId(), write);
             } catch (RejectedExecutionException e) {
                 if (LOG.isDebugEnabled()) {

@@ -110,6 +110,7 @@ class BookieNettyServer {
 
     private final ByteBufAllocator allocator;
 
+    // NOTE: Main -> BookieService -> BookieServer -> BookieNettyServer
     BookieNettyServer(ServerConfiguration conf, RequestProcessor processor, ByteBufAllocator allocator)
         throws IOException, KeeperException, InterruptedException, BookieException {
         this.allocator = allocator;
@@ -119,6 +120,7 @@ class BookieNettyServer {
         this.authProviderFactory = AuthProviderFactoryFactory.newBookieAuthProviderFactory(conf);
 
         if (!conf.isDisableServerSocketBind()) {
+            // NOTE: bookie server event loop
             this.eventLoopGroup = EventLoopUtil.getServerEventLoopGroup(conf, new DefaultThreadFactory("bookie-io"));
             allChannels = new CleanupChannelGroup(eventLoopGroup);
         } else {
@@ -167,6 +169,8 @@ class BookieNettyServer {
         } else {
             bindAddress = bookieAddress.getSocketAddress();
         }
+
+        // NOTE: now add channel handlers
         listenOn(bindAddress, bookieAddress);
     }
 
@@ -331,16 +335,22 @@ class BookieNettyServer {
                     ChannelPipeline pipeline = ch.pipeline();
 
                     // For ByteBufList, skip the usual LengthFieldPrepender and have the encoder itself to add it
+                    // NOTE: 1. byte buffer bytes size
                     pipeline.addLast("bytebufList", ByteBufList.ENCODER_WITH_SIZE);
 
+                    // NOTE: 2. netty length frame decoder
                     pipeline.addLast("lengthbaseddecoder", new LengthFieldBasedFrameDecoder(maxFrameSize, 0, 4, 0, 4));
+
+                    // NOTE: 3. netty length preapender
                     pipeline.addLast("lengthprepender", new LengthFieldPrepender(4));
 
+                    // NOTE: 4. proto decoder / encoder
                     pipeline.addLast("bookieProtoDecoder", new BookieProtoEncoding.RequestDecoder(registry));
                     pipeline.addLast("bookieProtoEncoder", new BookieProtoEncoding.ResponseEncoder(registry));
                     pipeline.addLast("bookieAuthHandler", new AuthHandler.ServerSideHandler(
                                 contextHandler.getConnectionPeer(), authProviderFactory));
 
+                    // NOTE: 5. handle bookie net inbound requests
                     ChannelInboundHandler requestHandler = isRunning.get()
                             ? new BookieRequestHandler(conf, requestProcessor, allChannels)
                             : new RejectRequestHandler();

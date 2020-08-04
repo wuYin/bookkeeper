@@ -115,6 +115,8 @@ public class BookieServer {
 
         shFactory = SecurityProviderFactoryFactory
                 .getSecurityProviderFactory(conf.getTLSProviderFactoryClass());
+
+        // NOTE: channel read and process
         this.requestProcessor = new BookieRequestProcessor(conf, bookie,
                 statsLogger.scope(SERVER_SCOPE), shFactory, bookie.getAllocator());
         this.nettyServer.setRequestProcessor(this.requestProcessor);
