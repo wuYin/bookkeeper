@@ -743,6 +743,7 @@ public class Bookie extends BookieCriticalThread {
         this.entryLogPerLedgerEnabled = conf.isEntryLogPerLedgerEnabled();
         CheckpointSource checkpointSource = new CheckpointSourceList(journals);
 
+        // NOTE: implement ledger storage
         ledgerStorage = buildLedgerStorage(conf);
 
         boolean isDbLedgerStorage = ledgerStorage instanceof DbLedgerStorage;
@@ -1373,6 +1374,7 @@ public class Bookie extends BookieCriticalThread {
     /**
      * Add entry to a ledger.
      */
+    // NOTE: core
     public void addEntry(ByteBuf entry, boolean ackBeforeSync, WriteCallback cb, Object ctx, byte[] masterKey)
             throws IOException, BookieException, InterruptedException {
         long requestNanos = MathUtils.nowInNano();
@@ -1386,6 +1388,7 @@ public class Bookie extends BookieCriticalThread {
                             .create(BookieException.Code.LedgerFencedException);
                 }
                 entrySize = entry.readableBytes();
+                // NOTE: entry --add--> handle(ledger)
                 addEntryInternal(handle, entry, ackBeforeSync, cb, ctx, masterKey);
             }
             success = true;

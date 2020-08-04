@@ -177,6 +177,7 @@ public class SortedLedgerStorage
         long entryId = entry.getLong(entry.readerIndex() + 8);
         long lac = entry.getLong(entry.readerIndex() + 16);
 
+        // NOTE: not flush yet, just cache append to memory table, and return
         memTable.addEntry(ledgerId, entryId, entry.nioBuffer(), this);
         interleavedLedgerStorage.ledgerCache.updateLastAddConfirmed(ledgerId, lac);
         return entryId;

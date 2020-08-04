@@ -152,6 +152,7 @@ public class LedgerDescriptorImpl extends LedgerDescriptor {
             throw new IOException("Entry for ledger " + ledgerId + " was sent to " + this.ledgerId);
         }
 
+        // NOTE: core, actually ledger add entry
         return ledgerStorage.addEntry(entry);
     }
 

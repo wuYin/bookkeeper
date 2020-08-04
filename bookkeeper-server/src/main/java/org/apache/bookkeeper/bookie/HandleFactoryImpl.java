@@ -26,6 +26,7 @@ import java.io.IOException;
 import org.apache.bookkeeper.bookie.LedgerStorage.LedgerDeletionListener;
 import org.apache.bookkeeper.util.collections.ConcurrentLongHashMap;
 
+// NOTE: bookie <----> HandleFactoryImpl <---> ledger storage
 class HandleFactoryImpl implements HandleFactory, LedgerDeletionListener {
     private final ConcurrentLongHashMap<LedgerDescriptor> ledgers;
     private final ConcurrentLongHashMap<LedgerDescriptor> readOnlyLedgers;
@@ -41,6 +42,7 @@ class HandleFactoryImpl implements HandleFactory, LedgerDeletionListener {
     }
 
     @Override
+    // NOTE: create ledger if not exist
     public LedgerDescriptor getHandle(final long ledgerId, final byte[] masterKey) throws IOException, BookieException {
         LedgerDescriptor handle = ledgers.get(ledgerId);
 

@@ -35,8 +35,11 @@ import org.apache.bookkeeper.common.util.Watcher;
  * Implements a ledger inside a bookie. In particular, it implements operations
  * to write entries to a ledger and read entries from a ledger.
  */
+
+// NOTE: read / write ledgers must through ld (like OS fd)
 public abstract class LedgerDescriptor {
 
+    // NOTE: static
     static LedgerDescriptor create(byte[] masterKey,
                                    long ledgerId,
                                    LedgerStorage ledgerStorage) throws IOException {

@@ -559,6 +559,7 @@ public class OrderedExecutor implements ExecutorService {
             return threads[0];
         }
 
+        // NOTE: ledger_id % thread.length, choose thread to execute write task
         return threads[MathUtils.signSafeMod(orderingKey, threads.length)];
     }
 
