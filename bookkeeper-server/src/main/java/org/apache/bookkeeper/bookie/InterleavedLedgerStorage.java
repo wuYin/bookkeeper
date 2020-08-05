@@ -84,6 +84,11 @@ import org.slf4j.LoggerFactory;
     category = CATEGORY_SERVER,
     help = "Bookie related stats"
 )
+//
+// NOTE: add/get entry from PERSISTENT Storage
+// 1. index storage: ledgerCache
+// 2. entry log storage: entryLogger
+//
 public class InterleavedLedgerStorage implements CompactableLedgerStorage, EntryLogListener {
     private static final Logger LOG = LoggerFactory.getLogger(InterleavedLedgerStorage.class);
     public static final long INVALID_ENTRYID = -1;
@@ -296,6 +301,10 @@ public class InterleavedLedgerStorage implements CompactableLedgerStorage, Entry
         LOG.info("Complete shutting down Ledger Storage");
     }
 
+
+    //
+    // NOTE: ledgerCache -> ledger index operations
+    //
     @Override
     public boolean setFenced(long ledgerId) throws IOException {
         return ledgerCache.setFenced(ledgerId);
@@ -366,6 +375,10 @@ public class InterleavedLedgerStorage implements CompactableLedgerStorage, Entry
         ledgerCache.cancelWaitForLastAddConfirmedUpdate(ledgerId, watcher);
     }
 
+    // NOTE: add entry workflow
+    // 1. write the entry to entryLogger
+    // 2. write the corresponding offset to ledgerCache, point to entry
+    // 3. update LAC
     @Override
     public long addEntry(ByteBuf entry) throws IOException {
         long ledgerId = entry.getLong(entry.readerIndex() + 0);
@@ -378,6 +391,9 @@ public class InterleavedLedgerStorage implements CompactableLedgerStorage, Entry
         return entryId;
     }
 
+    // NOTE: read entry workflow
+    // 1. read the offset pointer from ledgerCache
+    // 2. read the entry from ledgerLogger by specific offset
     @Override
     public ByteBuf getEntry(long ledgerId, long entryId) throws IOException {
         long offset;
@@ -420,6 +436,7 @@ public class InterleavedLedgerStorage implements CompactableLedgerStorage, Entry
         }
     }
 
+    // NOTE: persistent index and entry log
     private void flushOrCheckpoint(boolean isCheckpointFlush)
             throws IOException {
 
@@ -469,6 +486,8 @@ public class InterleavedLedgerStorage implements CompactableLedgerStorage, Entry
         flushOrCheckpoint(false);
     }
 
+    // NOTE: delete leger
+    // TODO: only remove from ledgerCache, ledgerLogger will delete by GC ?
     @Override
     public void deleteLedger(long ledgerId) throws IOException {
         activeLedgers.remove(ledgerId);

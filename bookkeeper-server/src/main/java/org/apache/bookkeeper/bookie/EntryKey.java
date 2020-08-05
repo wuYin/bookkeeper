@@ -27,6 +27,7 @@ import java.util.Comparator;
  *
  * <p>This class is mainly used in {@code SortedLedgerStorage} for managing and sorting the entries in the memtable.
  */
+// NOTE: <lid, eid> identify one entry
 public class EntryKey {
     long ledgerId;
     long entryId;

@@ -66,6 +66,7 @@ abstract class EntryLogManagerBase implements EntryLogManager {
      * This method should be guarded by a lock, so callers of this method
      * should be in the right scope of the lock.
      */
+    // NOTE: add a entry into entryLog, return offset
     @Override
     public long addEntry(long ledger, ByteBuf entry, boolean rollLog) throws IOException {
         int entrySize = entry.readableBytes() + 4; // Adding 4 bytes to prepend the size
@@ -96,6 +97,7 @@ abstract class EntryLogManagerBase implements EntryLogManager {
         return logChannel.position() + size > Integer.MAX_VALUE;
     }
 
+    // NOTE: current log file channel depend on ledger:entryLog mixed or not, 1:1 or N:1
     abstract BufferedLogChannel getCurrentLogForLedger(long ledgerId) throws IOException;
 
     abstract BufferedLogChannel getCurrentLogForLedgerForAddEntry(long ledgerId, int entrySize, boolean rollLog)

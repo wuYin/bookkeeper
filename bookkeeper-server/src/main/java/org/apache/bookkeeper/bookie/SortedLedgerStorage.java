@@ -51,6 +51,9 @@ import org.slf4j.LoggerFactory;
  * entries will be first added into a {@code MemTable}, and then be flushed back to the
  * {@code InterleavedLedgerStorage} when the {@code MemTable} becomes full.
  */
+//             -->
+// NOTE: entry --> memtable --> interleavedLedgerStorage
+//             -->
 public class SortedLedgerStorage
         implements LedgerStorage, CacheCallback, SkipListFlusher,
             CompactableLedgerStorage, EntryLogger.EntryLogListener {

@@ -649,6 +649,7 @@ public class Bookie extends BookieCriticalThread {
             ledgerStorage = buildLedgerStorage(conf);
         }
 
+        // NOTE: mem-table checkout source
         CheckpointSource checkpointSource = new CheckpointSource() {
             @Override
             public Checkpoint newCheckpoint() {
@@ -1257,6 +1258,8 @@ public class Bookie extends BookieCriticalThread {
                                   boolean ackBeforeSync, WriteCallback cb, Object ctx, byte[] masterKey)
             throws IOException, BookieException, InterruptedException {
         long ledgerId = handle.getLedgerId();
+
+        // NOTE: add entry to ledger write cache
         long entryId = handle.addEntry(entry);
 
         bookieStats.getWriteBytes().add(entry.readableBytes());

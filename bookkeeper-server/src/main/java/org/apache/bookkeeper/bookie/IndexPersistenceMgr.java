@@ -49,6 +49,7 @@ import org.slf4j.LoggerFactory;
 /**
  * A {@code IndexPersistenceMgr} is responsible for managing the persistence state for the index in a bookie.
  */
+// NOTE: manage index persistent states
 public class IndexPersistenceMgr {
     private static final Logger LOG = LoggerFactory.getLogger(IndexPersistenceMgr.class);
 
@@ -102,15 +103,16 @@ public class IndexPersistenceMgr {
 
         // build the file info cache
         int concurrencyLevel = Math.max(1, Math.max(conf.getNumAddWorkerThreads(), conf.getNumReadWorkerThreads()));
-        fileInfoBackingCache = new FileInfoBackingCache(this::createFileInfoBackingFile,
-                conf.getFileInfoFormatVersionToWrite());
+        fileInfoBackingCache = new FileInfoBackingCache(this::createFileInfoBackingFile, conf.getFileInfoFormatVersionToWrite());
         RemovalListener<Long, CachedFileInfo> fileInfoEvictionListener = this::handleLedgerEviction;
+
         writeFileInfoCache = buildCache(
             concurrencyLevel,
             conf.getFileInfoCacheInitialCapacity(),
             openFileLimit,
             conf.getFileInfoMaxIdleTime(),
             fileInfoEvictionListener);
+
         readFileInfoCache = buildCache(
             concurrencyLevel,
             2 * conf.getFileInfoCacheInitialCapacity(),

@@ -94,14 +94,19 @@ class BookieNettyServer {
 
     final int maxFrameSize;
     final ServerConfiguration conf;
+
     final EventLoopGroup eventLoopGroup;
     final EventLoopGroup jvmEventLoopGroup;
+
     RequestProcessor requestProcessor;
+
     final AtomicBoolean isRunning = new AtomicBoolean(false);
     final AtomicBoolean isClosed = new AtomicBoolean(false);
     final Object suspensionLock = new Object();
     volatile boolean suspended = false;
+
     ChannelGroup allChannels;
+
     final BookieSocketAddress bookieAddress;
     final InetSocketAddress bindAddress;
 

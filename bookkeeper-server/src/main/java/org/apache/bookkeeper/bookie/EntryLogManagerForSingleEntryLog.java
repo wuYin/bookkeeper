@@ -41,8 +41,11 @@ import org.apache.bookkeeper.util.IOUtils;
 @Slf4j
 class EntryLogManagerForSingleEntryLog extends EntryLogManagerBase {
 
+    // NOTE: current entry log file channel
     private volatile BufferedLogChannel activeLogChannel;
     private long logIdBeforeFlush = INVALID_LID;
+
+    // NOTE: listener monitor dir usage, almost full will set this true, then use next ledger dir
     private final AtomicBoolean shouldCreateNewEntryLog = new AtomicBoolean(false);
     private EntryLogger.RecentEntryLogsStatus recentlyCreatedEntryLogsStatus;
 
@@ -87,6 +90,7 @@ class EntryLogManagerForSingleEntryLog extends EntryLogManagerBase {
         return super.addEntry(ledger, entry, rollLog);
     }
 
+    // NOTE: return entry log for append, create new one if current dir almost full
     @Override
     synchronized BufferedLogChannel getCurrentLogForLedgerForAddEntry(long ledgerId, int entrySize,
             boolean rollLog) throws IOException {

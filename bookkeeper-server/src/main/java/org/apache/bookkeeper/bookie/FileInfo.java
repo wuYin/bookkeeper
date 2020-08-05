@@ -59,11 +59,18 @@ import org.slf4j.LoggerFactory;
  * in entry loggers.
  * </p>
  */
+//
+// NOTE: wrap INDEX FileChannel into FileInfo, add fence states to identify it's states
+// using synchronized lock to protect states
+//
+// NOTE: file structure
+// 1. header: <magic bytes><len of master key><master key>
+// 2. index pages: fixed-length page, 1024 keys -> offsets
 class FileInfo extends Watchable<LastAddConfirmedUpdateNotification> {
     private static final Logger LOG = LoggerFactory.getLogger(FileInfo.class);
 
     static final int NO_MASTER_KEY = -1;
-    static final int STATE_FENCED_BIT = 0x1;
+    static final int STATE_FENCED_BIT = 0x1; // NOTE: fence state is implement by the last bit
 
     private FileChannel fc;
     private File lf;
@@ -121,6 +128,7 @@ class FileInfo extends Watchable<LastAddConfirmedUpdateNotification> {
         long lacToReturn;
         boolean changed = false;
         synchronized (this) {
+            // FIXME: lacToReturn maybe not old value
             if (null == this.lac || this.lac < lac) {
                 this.lac = lac;
                 changed = true;
@@ -320,6 +328,14 @@ class FileInfo extends Watchable<LastAddConfirmedUpdateNotification> {
         }
     }
 
+    // NOTE: file header
+    // 1. magic number
+    // 2. header version: `v1`
+    // 3. master key length
+    // 4. master key
+    // 5. fence state bits
+    // 6. LAC bytebuffer capacity
+    // 7. LAC
     private void writeHeader() throws IOException {
         ByteBuffer bb = ByteBuffer.allocate((int) START_OF_DATA);
         bb.putInt(SIGNATURE);
@@ -569,6 +585,7 @@ class FileInfo extends Watchable<LastAddConfirmedUpdateNotification> {
             return;
         }
         if (!parent.mkdirs()) {
+            // FIXME: typo
             throw new IOException("Counldn't mkdirs for " + parent);
         }
     }

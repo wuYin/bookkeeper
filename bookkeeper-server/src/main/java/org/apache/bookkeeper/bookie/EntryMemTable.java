@@ -46,11 +46,18 @@ import org.slf4j.LoggerFactory;
  * We continue to serve edits out of new EntrySkipList and backing snapshot until
  * flusher reports in that the flush succeeded. At that point we let the snapshot go.
  */
+//
+// NOTE: in-memory entries implement by concurrent skip list, supply:
+// 1. add/get entry
+// 2. automatic take snapshot and flush
+//
+//
+// TODO: EntrySkipList using checkpoint MIN / MAX to compare, why this design ?
+//
 public class EntryMemTable implements AutoCloseable{
     private static Logger logger = LoggerFactory.getLogger(EntryMemTable.class);
-    /**
-     * Entry skip list.
-     */
+
+    // NOTE: internal entry skip list.
     static class EntrySkipList extends ConcurrentSkipListMap<EntryKey, EntryKeyValue> {
         final Checkpoint cp;
         static final EntrySkipList EMPTY_VALUE = new EntrySkipList(Checkpoint.MAX) {
@@ -77,6 +84,7 @@ public class EntryMemTable implements AutoCloseable{
         @Override
         public EntryKeyValue putIfAbsent(EntryKey k, EntryKeyValue v) {
             assert k.equals(v);
+            // NOTE: add entry to sorted skip list
             return super.putIfAbsent(v, v);
         }
 
@@ -86,8 +94,10 @@ public class EntryMemTable implements AutoCloseable{
         }
     }
 
+    // NOTE: two core kv db components
+    // NOTE: 1. kvDB itself
     volatile EntrySkipList kvmap;
-
+    // NOTE: 2. kvDB snapshot
     // Snapshot of EntryMemTable.  Made for flusher.
     volatile EntrySkipList snapshot;
 
@@ -99,8 +109,8 @@ public class EntryMemTable implements AutoCloseable{
     // Used to track own data size
     final AtomicLong size;
 
-    final long skipListSizeLimit;
-    final Semaphore skipListSemaphore;
+    final long skipListSizeLimit; // 64MB
+    final Semaphore skipListSemaphore; // 2*size
 
     SkipListArena allocator;
 
@@ -108,7 +118,7 @@ public class EntryMemTable implements AutoCloseable{
     private final AtomicBoolean previousFlushSucceeded;
 
     private EntrySkipList newSkipList() {
-        return new EntrySkipList(checkpointSource.newCheckpoint());
+        return new EntrySkipList(checkpointSource.newCheckpoint()); // MAX
     }
 
     // Stats
@@ -122,7 +132,7 @@ public class EntryMemTable implements AutoCloseable{
                          final StatsLogger statsLogger) {
         this.checkpointSource = source;
         this.kvmap = newSkipList();
-        this.snapshot = EntrySkipList.EMPTY_VALUE;
+        this.snapshot = EntrySkipList.EMPTY_VALUE; // NOTE: init MAX checkpoint
         this.conf = conf;
         this.size = new AtomicLong(0);
         this.allocator = new SkipListArena(conf);
@@ -171,9 +181,13 @@ public class EntryMemTable implements AutoCloseable{
         if (this.snapshot.isEmpty() && this.kvmap.compareTo(oldCp) < 0) {
             final long startTimeNanos = MathUtils.nowInNano();
             this.lock.writeLock().lock();
+            // NOTE: snapshot principle: just pointer to old kvmp, and replace new one
             try {
-                if (this.snapshot.isEmpty() && !this.kvmap.isEmpty()
-                        && this.kvmap.compareTo(oldCp) < 0) {
+                // NOTE: snapshot three conditions
+                // NOTE: 1. cur snapshot is empty skip list
+                // NOTE: 2. cur kvmap is not empty, with kvs
+                // NOTE: 3. cur checkpoint is `MIN`
+                if (this.snapshot.isEmpty() && !this.kvmap.isEmpty() && this.kvmap.compareTo(oldCp) < 0) {
                     this.snapshot = this.kvmap;
                     this.kvmap = newSkipList();
                     // get the checkpoint of the memtable.
@@ -195,7 +209,7 @@ public class EntryMemTable implements AutoCloseable{
                     .registerFailedEvent(MathUtils.elapsedNanos(startTimeNanos), TimeUnit.NANOSECONDS);
             }
         }
-        return cp;
+        return cp; // MAX
     }
 
     /**
@@ -232,8 +246,9 @@ public class EntryMemTable implements AutoCloseable{
         }
     }
 
+    // FIXME: typo iff
     /**
-     * Flush snapshot and clear it iff its data is before checkpoint. Only this
+     * Flush snapshot and clear it if its data is before checkpoint. Only this
      * function change non-empty this.snapshot.
      *
      * <p>EntryMemTableWithParallelFlusher overrides this flushSnapshot method. So
@@ -242,23 +257,30 @@ public class EntryMemTable implements AutoCloseable{
      */
     long flushSnapshot(final SkipListFlusher flusher, Checkpoint checkpoint) throws IOException {
         long size = 0;
+        // NOTE: cur snapshot checkpoint is `MIN`
         if (this.snapshot.compareTo(checkpoint) < 0) {
-            long ledger, ledgerGC = -1;
+            long ledgerId, ledgerGC = -1;
             synchronized (this) {
                 EntrySkipList keyValues = this.snapshot;
+                // NOTE: double check
                 if (keyValues.compareTo(checkpoint) < 0) {
+
+                    // NOTE: now flush all entries
                     for (EntryKey key : keyValues.keySet()) {
                         EntryKeyValue kv = (EntryKeyValue) key;
                         size += kv.getLength();
-                        ledger = kv.getLedgerId();
-                        if (ledgerGC != ledger) {
+                        ledgerId = kv.getLedgerId();
+                        if (ledgerGC != ledgerId) {
                             try {
-                                flusher.process(ledger, kv.getEntryId(), kv.getValueAsByteBuffer());
+                                flusher.process(ledgerId, kv.getEntryId(), kv.getValueAsByteBuffer());
                             } catch (NoLedgerException exception) {
-                                ledgerGC = ledger;
+                                // NOTE: if one ledger flush FAILED, then same ledger_id SKIP flush
+                                // TODO: why ?
+                                ledgerGC = ledgerId;
                             }
                         }
                     }
+
                     memTableStats.getFlushBytesCounter().add(size);
                     clearSnapshot(keyValues);
                 }
@@ -281,6 +303,7 @@ public class EntryMemTable implements AutoCloseable{
         try {
             // create a new snapshot and let the old one go.
             assert this.snapshot == keyValues;
+            // NOTE: abandon mem-table to GC, and reset snapshot to EMPTY_LIST
             this.snapshot = EntrySkipList.EMPTY_VALUE;
         } finally {
             this.lock.writeLock().unlock();
@@ -294,12 +317,15 @@ public class EntryMemTable implements AutoCloseable{
      * @return approximate size of the passed key and value.
      * @throws IOException
      */
+    // NOTE: add entry to kvmap, take snapshot if necessary
     public long addEntry(long ledgerId, long entryId, final ByteBuffer entry, final CacheCallback cb)
             throws IOException {
         long size = 0;
         long startTimeNanos = MathUtils.nowInNano();
         boolean success = false;
         try {
+            // NOTE: reach mem limit, then take snapshot
+            // NOTE: prev flush failed with exception, take snapshot and retry
             if (isSizeLimitReached() || (!previousFlushSucceeded.get())) {
                 Checkpoint cp = snapshot();
                 if ((null != cp) || (!previousFlushSucceeded.get())) {
@@ -316,6 +342,7 @@ public class EntryMemTable implements AutoCloseable{
                     .registerSuccessfulEvent(MathUtils.elapsedNanos(throttlingStartTimeNanos), TimeUnit.NANOSECONDS);
             }
 
+            // NOTE: lock for put <lid,eid> -> entry into kvmap
             this.lock.readLock().lock();
             try {
                 EntryKeyValue toAdd = cloneWithAllocator(ledgerId, entryId, entry);
@@ -341,6 +368,7 @@ public class EntryMemTable implements AutoCloseable{
     * allocator, and doesn't take the lock.
     * Callers should ensure they already have the read lock taken
     */
+    // NOTE: kvmap.KEY is EntryKeyValue too, not EntryKey
     private long internalAdd(final EntryKeyValue toAdd) throws IOException {
         long sizeChange = 0;
         if (kvmap.putIfAbsent(toAdd, toAdd) == null) {
@@ -380,6 +408,7 @@ public class EntryMemTable implements AutoCloseable{
      * @param entryId
      * @return the entry kv or null if none found.
      */
+    // NOTE: query entry in kvmap cache
     public EntryKeyValue getEntry(long ledgerId, long entryId) throws IOException {
         EntryKey key = new EntryKey(ledgerId, entryId);
         EntryKeyValue value = null;
@@ -389,6 +418,7 @@ public class EntryMemTable implements AutoCloseable{
         try {
             value = this.kvmap.get(key);
             if (value == null) {
+                // NOTE: if not in kvmap, try snapshot old kvmap
                 value = this.snapshot.get(key);
             }
             success = true;
@@ -411,6 +441,7 @@ public class EntryMemTable implements AutoCloseable{
      * @param ledgerId
      * @return the entry kv or null if none found.
      */
+    // NOTE: floor edition getEntry
     public EntryKeyValue getLastEntry(long ledgerId) throws IOException {
         EntryKey result = null;
         EntryKey key = new EntryKey(ledgerId, Long.MAX_VALUE);

@@ -72,6 +72,9 @@ import org.slf4j.LoggerFactory;
  * the actual ledger entry. The entry log files created by this class are
  * identified by a long.
  */
+//                            -->               <--
+// NOTE: mixed ledger entries --> a common log  <-- LedgerCache offset indexes
+//                            -->               <--
 public class EntryLogger {
     private static final Logger LOG = LoggerFactory.getLogger(EntryLogger.class);
     static final long UNASSIGNED_LEDGERID = -1L;
@@ -378,6 +381,7 @@ public class EntryLogger {
             this.entryLogManager = new EntryLogManagerForEntryLogPerLedger(conf, ledgerDirsManager,
                     entryLoggerAllocator, listeners, recentlyCreatedEntryLogsStatus, statsLogger);
         } else {
+            // NOTE: by default, mixed ledgers use same entryLog
             this.entryLogManager = new EntryLogManagerForSingleEntryLog(conf, ledgerDirsManager, entryLoggerAllocator,
                     listeners, recentlyCreatedEntryLogsStatus);
         }

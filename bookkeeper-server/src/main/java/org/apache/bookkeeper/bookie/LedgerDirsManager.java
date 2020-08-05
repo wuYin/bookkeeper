@@ -42,6 +42,9 @@ import org.slf4j.LoggerFactory;
 /**
  * This class manages ledger directories used by the bookie.
  */
+//
+// NOTE: manage ledger multi directories init create, size monitor and callback
+//
 public class LedgerDirsManager {
     private static final Logger LOG = LoggerFactory.getLogger(LedgerDirsManager.class);
 
@@ -50,8 +53,7 @@ public class LedgerDirsManager {
     private volatile List<File> writableLedgerDirectories;
     private final List<LedgerDirsListener> listeners;
     private final Random rand = new Random();
-    private final ConcurrentMap<File, Float> diskUsages =
-            new ConcurrentHashMap<File, Float>();
+    private final ConcurrentMap<File, Float> diskUsages = new ConcurrentHashMap<File, Float>();
     private final long entryLogSize;
     private long minUsableSizeForEntryLogCreation;
     private long minUsableSizeForIndexFileCreation;
@@ -63,14 +65,17 @@ public class LedgerDirsManager {
     }
 
     public LedgerDirsManager(ServerConfiguration conf, File[] dirs, DiskChecker diskChecker, StatsLogger statsLogger) {
-        this.ledgerDirectories = Arrays.asList(Bookie
-                .getCurrentDirectories(dirs));
+        // NOTE: create current sub directory in all directory
+        this.ledgerDirectories = Arrays.asList(Bookie.getCurrentDirectories(dirs));
         this.writableLedgerDirectories = new ArrayList<File>(ledgerDirectories);
+
         this.filledDirs = new ArrayList<File>();
         this.listeners = new ArrayList<LedgerDirsListener>();
-        this.entryLogSize = conf.getEntryLogSizeLimit();
-        this.minUsableSizeForIndexFileCreation = conf.getMinUsableSizeForIndexFileCreation();
-        this.minUsableSizeForEntryLogCreation = conf.getMinUsableSizeForEntryLogCreation();
+
+        this.entryLogSize = conf.getEntryLogSizeLimit(); // NOTE: 1G
+        this.minUsableSizeForIndexFileCreation = conf.getMinUsableSizeForIndexFileCreation(); // NOTE: 100M
+        this.minUsableSizeForEntryLogCreation = conf.getMinUsableSizeForEntryLogCreation(); // NOTE: 1.2G
+
         for (File dir : ledgerDirectories) {
             diskUsages.put(dir, 0f);
             String statName = "dir_" + dir.getParent().replace('/', '_') + "_usage";
@@ -151,12 +156,10 @@ public class LedgerDirsManager {
     /**
      * Get only writable ledger dirs.
      */
-    public List<File> getWritableLedgerDirs()
-            throws NoWritableLedgerDirException {
+    public List<File> getWritableLedgerDirs() throws NoWritableLedgerDirException {
         if (writableLedgerDirectories.isEmpty()) {
             String errMsg = "All ledger directories are non writable";
-            NoWritableLedgerDirException e = new NoWritableLedgerDirException(
-                    errMsg);
+            NoWritableLedgerDirException e = new NoWritableLedgerDirException(errMsg);
             throw e;
         }
         return writableLedgerDirectories;
@@ -180,8 +183,7 @@ public class LedgerDirsManager {
         return getDirsAboveUsableThresholdSize(minUsableSizeForEntryLogCreation, true);
     }
 
-    List<File> getDirsAboveUsableThresholdSize(long thresholdSize, boolean loggingNoWritable)
-            throws NoWritableLedgerDirException {
+    List<File> getDirsAboveUsableThresholdSize(long thresholdSize, boolean loggingNoWritable) throws NoWritableLedgerDirException {
         List<File> fullLedgerDirsToAccomodate = new ArrayList<File>();
         for (File dir: this.ledgerDirectories) {
             // Pick dirs which can accommodate little more than thresholdSize

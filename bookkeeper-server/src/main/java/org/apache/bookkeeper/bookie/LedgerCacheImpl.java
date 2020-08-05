@@ -40,6 +40,9 @@ import org.slf4j.LoggerFactory;
  * Implementation of LedgerCache interface.
  * This class serves two purposes.
  */
+// NOTE: two user level cache for indexing
+// 1. indexPageManager: (ledgerId, entryId) -> offset
+// 2. indexPersistenceManager: persist extra LAC, Fence states
 public class LedgerCacheImpl implements LedgerCache {
     private static final Logger LOG = LoggerFactory.getLogger(LedgerCacheImpl.class);
 
@@ -55,12 +58,10 @@ public class LedgerCacheImpl implements LedgerCache {
 
     public LedgerCacheImpl(ServerConfiguration conf, SnapshotMap<Long, Boolean> activeLedgers,
                            LedgerDirsManager ledgerDirsManager, StatsLogger statsLogger) throws IOException {
-        this.pageSize = conf.getPageSize();
-        this.entriesPerPage = pageSize / 8;
-        this.indexPersistenceManager = new IndexPersistenceMgr(pageSize, entriesPerPage, conf, activeLedgers,
-                ledgerDirsManager, statsLogger);
-        this.indexPageManager = new IndexInMemPageMgr(pageSize, entriesPerPage, conf,
-                indexPersistenceManager, statsLogger);
+        this.pageSize = conf.getPageSize(); // 8KB
+        this.entriesPerPage = pageSize / 8; // 1024
+        this.indexPersistenceManager = new IndexPersistenceMgr(pageSize, entriesPerPage, conf, activeLedgers, ledgerDirsManager, statsLogger);
+        this.indexPageManager = new IndexInMemPageMgr(pageSize, entriesPerPage, conf, indexPersistenceManager, statsLogger);
     }
 
     IndexPersistenceMgr getIndexPersistenceManager() {

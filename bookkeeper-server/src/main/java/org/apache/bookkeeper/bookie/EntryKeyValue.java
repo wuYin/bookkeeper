@@ -29,8 +29,11 @@ import java.nio.ByteBuffer;
  * EntryKeyValue wraps a byte array and takes offsets and lengths into the array to
  * interpret the content as entry blob.
  */
+// NOTE: notice value extend from key
 public class EntryKeyValue extends EntryKey {
     private final byte [] bytes;
+
+    // NOTE: entry value metadata
     private int offset = 0; // start offset of entry blob
     private int length = 0; // length of entry blob
 
@@ -60,6 +63,7 @@ public class EntryKeyValue extends EntryKey {
      * Presumes <code>bytes</code> content contains the value portion of a EntryKeyValue.
      * @param bytes byte array
      */
+    // NOTE: offset always be 0, blob start with metadata
     public EntryKeyValue(long ledgerId, long entryId, final byte [] bytes) {
         this(ledgerId, entryId, bytes, 0, bytes.length);
     }
