@@ -42,6 +42,7 @@ import org.slf4j.LoggerFactory;
  * Simple wrapper around FileChannel to add versioning
  * information to the file.
  */
+// NOTE: metadata operator for file channel
 class JournalChannel implements Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(JournalChannel.class);
 
@@ -54,7 +55,7 @@ class JournalChannel implements Closeable {
 
     final byte[] magicWord = "BKLG".getBytes(UTF_8);
 
-    static final int SECTOR_SIZE = 512;
+    static final int SECTOR_SIZE = 512; // journal algin size
     private static final int START_OF_FILE = -12345;
     private static long cacheDropLagBytes = 8 * 1024 * 1024;
 
@@ -125,7 +126,7 @@ class JournalChannel implements Closeable {
      * @param journalDirectory
      *          directory to store the journal file.
      * @param logId
-     *          log id for the journal file.
+     *          log id for the journal file, aka journalId
      * @param preAllocSize
      *          pre allocation size.
      * @param writeBufferSize
@@ -170,8 +171,8 @@ class JournalChannel implements Closeable {
             ByteBuffer bb = ByteBuffer.allocate(headerSize);
             ZeroBuffer.put(bb);
             bb.clear();
-            bb.put(magicWord);
-            bb.putInt(formatVersion);
+            bb.put(magicWord); // NOTE: 1. MagicNumber
+            bb.putInt(formatVersion); // NOTE: Version
             bb.clear();
             fc.write(bb);
 

@@ -50,6 +50,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.bookie.LedgerDirsManager.NoWritableLedgerDirException;
 import org.apache.bookkeeper.bookie.stats.JournalStats;
+import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.common.collections.BlockingMpscQueue;
 import org.apache.bookkeeper.common.collections.RecyclableArrayList;
 import org.apache.bookkeeper.common.util.affinity.CpuAffinity;
@@ -171,6 +172,7 @@ public class Journal extends BookieCriticalThread implements CheckpointSource {
      * Last Log Mark.
      */
     public class LastLogMark {
+        // NOTE: <fileId, offset>
         private final LogMark curMark;
 
         LastLogMark(long logId, long logPosition) {
@@ -295,6 +297,7 @@ public class Journal extends BookieCriticalThread implements CheckpointSource {
     /**
      * Journal Entry to Record.
      */
+    // NOTE: queue task
     private static class QueueEntry implements Runnable {
         ByteBuf entry;
         long ledgerId;
@@ -584,14 +587,18 @@ public class Journal extends BookieCriticalThread implements CheckpointSource {
 
     static final long MB = 1024 * 1024L;
     static final int KB = 1024;
+
+    //
+    // NOTE: journal fields
+    //
     // max journal file size
-    final long maxJournalSize;
+    final long maxJournalSize; // 2GB
     // pre-allocation size for the journal files
-    final long journalPreAllocSize;
+    final long journalPreAllocSize; // 16MB
     // write buffer size for the journal files
-    final int journalWriteBufferSize;
+    final int journalWriteBufferSize; // 64KB
     // number journal files kept before marked journal
-    final int maxBackupJournals;
+    final int maxBackupJournals; // 5
 
     final File journalDirectory;
     final ServerConfiguration conf;
@@ -687,6 +694,7 @@ public class Journal extends BookieCriticalThread implements CheckpointSource {
         if (conf.getJournalDirs().length == 1) {
             lastMarkFileName = LAST_MARK_DEFAULT_NAME;
         } else {
+            // NOTE: mark file name, lastMark.idx
             lastMarkFileName = LAST_MARK_DEFAULT_NAME + "." + journalIndex;
         }
         lastLogMark.readLog();

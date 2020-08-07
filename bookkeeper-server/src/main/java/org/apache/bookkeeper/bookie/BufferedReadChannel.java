@@ -31,6 +31,7 @@ import java.nio.channels.FileChannel;
 /**
  * A Buffered channel without a write buffer. Only reads are buffered.
  */
+// NOTE: simple read cache font of FileChannel
 public class BufferedReadChannel extends BufferedChannelBase  {
 
     // The capacity of the read buffer.
@@ -65,18 +66,23 @@ public class BufferedReadChannel extends BufferedChannelBase  {
         return read(dest, pos, dest.writableBytes());
     }
 
+    // NOTE: from pos, read length bytes to dest
+    // 1. cache missed: read FileChannel to this.readBuffer
+    // 2. cache hit   : read remain length bytes, or reach end
     public synchronized int read(ByteBuf dest, long pos, int length) throws IOException {
         invocationCount++;
         long currentPosition = pos;
+
         long eof = validateAndGetFileChannel().size();
         // return -1 if the given position is greater than or equal to the file's current size.
         if (pos >= eof) {
             return -1;
         }
+
         while (length > 0) {
             // Check if the data is in the buffer, if so, copy it.
             if (readBufferStartPosition <= currentPosition
-                    && currentPosition < readBufferStartPosition + readBuffer.readableBytes()) {
+                    && currentPosition - readBufferStartPosition < readBuffer.readableBytes()) {
                 int posInBuffer = (int) (currentPosition - readBufferStartPosition);
                 int bytesToCopy = Math.min(length, readBuffer.readableBytes() - posInBuffer);
                 dest.writeBytes(readBuffer, posInBuffer, bytesToCopy);
@@ -90,7 +96,7 @@ public class BufferedReadChannel extends BufferedChannelBase  {
                 // We don't have it in the buffer, so put necessary data in the buffer
                 readBufferStartPosition = currentPosition;
                 int readBytes = 0;
-                if ((readBytes = validateAndGetFileChannel().read(readBuffer.internalNioBuffer(0, readCapacity),
+                if ((readBytes = validateAndGetFileChannel().read(readBuffer.internalNioBuffer(0, readCapacity),  // 512 Bytes
                         currentPosition)) <= 0) {
                     throw new IOException("Reading from filechannel returned a non-positive value. Short read.");
                 }

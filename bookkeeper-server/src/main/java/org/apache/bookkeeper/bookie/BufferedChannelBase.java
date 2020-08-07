@@ -37,6 +37,7 @@ public abstract class BufferedChannelBase {
         this.fileChannel = fc;
     }
 
+    // NOTE: base check, check open state before using FileChannel
     protected FileChannel validateAndGetFileChannel() throws IOException {
         // Even if we have BufferedChannelBase objects in the cache, higher layers should
         // guarantee that once a log file has been closed and possibly deleted during garbage

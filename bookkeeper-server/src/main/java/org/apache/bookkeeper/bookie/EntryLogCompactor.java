@@ -36,6 +36,10 @@ import org.slf4j.LoggerFactory;
  * The compaction is done by scanning the old entry log file, copy the active ledgers to the
  * current entry logger and remove the old entry log when the scan is over.
  */
+// NOTE: compact entry log
+// 1. scanning entry logs
+// 2. copy active (maybe latest) entry logs which has same key to current entry log
+// 3. remove copied and old entry log file
 public class EntryLogCompactor extends AbstractLogCompactor {
     private static final Logger LOG = LoggerFactory.getLogger(EntryLogCompactor.class);
 

@@ -34,9 +34,11 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * Provides a buffering layer in front of a FileChannel.
  */
+// NOTE: write --> BufferedChannel --> FileChannel
+//        read <--
 public class BufferedChannel extends BufferedReadChannel implements Closeable {
     // The capacity of the write buffer.
-    protected final int writeCapacity;
+    protected final int writeCapacity; // 65536, 16KB
     // The position of the file channel's write pointer.
     protected AtomicLong writeBufferStartPosition = new AtomicLong(0);
     // The buffer used to write operations.
@@ -53,7 +55,7 @@ public class BufferedChannel extends BufferedReadChannel implements Closeable {
      * synchronized and unpersistedBytes is reset in 'forceWrite' method before
      * calling fileChannel.force
      */
-    protected final long unpersistedBytesBound;
+    protected final long unpersistedBytesBound; // NOTE: flush writeBuffer border
     private final boolean doRegularFlushes;
 
     /*
@@ -108,6 +110,7 @@ public class BufferedChannel extends BufferedReadChannel implements Closeable {
      * @throws IOException if a write operation fails.
      */
     public void write(ByteBuf src) throws IOException {
+        // NOTE: incr `copied` as src cursor to read and copy
         int copied = 0;
         boolean shouldForceWrite = false;
         synchronized (this) {
@@ -123,6 +126,8 @@ public class BufferedChannel extends BufferedReadChannel implements Closeable {
                     flush();
                 }
             }
+
+            // NOTE: remain a little bytes in writeBuffer
             position += copied;
             if (doRegularFlushes) {
                 unpersistedBytes.addAndGet(copied);
@@ -188,6 +193,7 @@ public class BufferedChannel extends BufferedReadChannel implements Closeable {
      *
      * @throws IOException if the write fails.
      */
+    // NOTE: write writeBuffer bytes into fileChannel
     public synchronized void flush() throws IOException {
         ByteBuffer toWrite = writeBuffer.internalNioBuffer(0, writeBuffer.writerIndex());
         do {
